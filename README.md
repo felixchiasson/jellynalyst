@@ -1,3 +1,7 @@
+![GitHub last commit](https://img.shields.io/github/last-commit/felixchiasson/jellynalyst) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/felixchiasson/jellynalyst)
+
+
+
 # Jellynalyst
 
 Analytics dashboard for Jellyseerr and Jellyfin.
