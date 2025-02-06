@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     curl \
+    netcat-traditional \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv using pip
@@ -29,8 +30,12 @@ RUN uv pip install -r requirements-dev.txt
 
 COPY . .
 
+# Make the startup script executable
+COPY scripts/start.sh /start.sh
+RUN chmod +x /start.sh
+
 # Create non-root user
 RUN adduser --disabled-password --gecos '' jellynalyst
 USER jellynalyst
 
-CMD ["uvicorn", "jellynalyst.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/start.sh"]

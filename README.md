@@ -1,55 +1,59 @@
-## Deployment with Docker
+# Jellynalyst
 
-### Prerequisites
-- Docker
-- Docker Compose
+Analytics dashboard for Jellyseerr and Jellyfin.
 
-### Steps to deploy
+## Setup
 
-1. Copy the example environment file:
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Edit the `.env` file with your actual configuration values
-
-3. Build and start the containers:
-   ```bash
-   docker compose up -d --build
-   ```
-
-4. Run database migrations:
-   ```bash
-   docker compose exec web alembic upgrade head
-   ```
-
-5. Access the application at http://localhost:8000
-
-### Useful commands
-
-- View logs:
-  ```bash
-  docker compose logs -f
-  ```
-
-- Restart services:
-  ```bash
-  docker compose restart
-  ```
-
-- Stop all services:
-  ```bash
-  docker compose down
-  ```
-
-- Stop and remove all data (including database):
-  ```bash
-  docker compose down -v
-  ```
+1. Create a virtual environment:
+```bash
+uv venv
+source .venv/bin/activate  # Unix
+# or
+.venv\Scripts\activate     # Windows
 ```
 
-To deploy the application:
-
-1. **Build and start the containers**:
+2. Install dependencies:
 ```bash
-docker compose up -d --build
+uv pip install -r requirements.txt
+```
+
+3. Copy `.env.example` to `.env` and fill in your values:
+```bash
+cp .env.example .env
+```
+
+4. Run database migrations:
+```bash
+alembic upgrade head
+```
+
+5. Start the application:
+```bash
+uvicorn jellynalyst.main:app --reload
+```
+
+## Development
+
+- Format code: `black .`
+- Sort imports: `isort .`
+- Type check: `pyright`
+- Run tests: `pytest`
+
+## Database Migrations
+
+Create a new migration:
+```bash
+alembic revision --autogenerate -m "Description of changes"
+```
+
+Apply migrations:
+```bash
+alembic upgrade head
+```
+
+## Docker
+
+Build and run with Docker:
+```bash
+docker compose up --build
+```

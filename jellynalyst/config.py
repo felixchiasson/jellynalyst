@@ -23,7 +23,13 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
+        """Async database URL for the application"""
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.DATABASE_HOST}/{self.POSTGRES_DB}"
+
+    @property
+    def SYNC_DATABASE_URL(self) -> str:
+        """Sync database URL for migrations"""
+        return f"postgresql+psycopg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.DATABASE_HOST}/{self.POSTGRES_DB}"
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
