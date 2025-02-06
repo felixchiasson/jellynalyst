@@ -1,10 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String, DateTime, ARRAY, Boolean
+from sqlalchemy import String, DateTime, ARRAY, Boolean, Enum
 from datetime import datetime
 from typing import List
 from typing import AsyncGenerator
 import enum
+import zoneinfo
 
 class Base(DeclarativeBase):
     pass
@@ -24,12 +25,12 @@ class MediaRequest(Base):
     tmdb_id: Mapped[int] = mapped_column(nullable=False)
     media_type: Mapped[str] = mapped_column(String(50), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    request_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    status: Mapped[RequestStatus] = mapped_column(nullable=False)
+    request_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[RequestStatus] = mapped_column(Enum(RequestStatus), nullable=False)
     requester: Mapped[str] = mapped_column(String(100), nullable=False)
     genres: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=False)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
-    last_checked: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    last_checked: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 # Database connection
 async def init_db(settings):
