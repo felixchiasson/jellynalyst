@@ -14,6 +14,7 @@ venv/
 .vscode/
 *.swp
 *.swo
+.ropeproject/
 
 # OS
 .DS_Store
