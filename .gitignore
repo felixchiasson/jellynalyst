@@ -19,9 +19,5 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Project specific
-alembic/versions/*
-!alembic/versions/.gitkeep
-
 # Make sure scripts are executable
 *.sh text eol=lf
