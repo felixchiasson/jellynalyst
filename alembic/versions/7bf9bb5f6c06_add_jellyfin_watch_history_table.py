@@ -1,8 +1,8 @@
-"""Add jellyfin users table
+"""Add jellyfin watch history table
 
-Revision ID: 0a3e7b842ee6
+Revision ID: 7bf9bb5f6c06
 Revises: 
-Create Date: 2025-02-07 09:38:13.279235
+Create Date: 2025-02-07 10:31:22.589188
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '0a3e7b842ee6'
+revision: str = '7bf9bb5f6c06'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

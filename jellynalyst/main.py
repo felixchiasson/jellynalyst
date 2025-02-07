@@ -40,7 +40,7 @@ import asyncio
 # Local imports
 from .config import Settings
 from .database import init_db, init_session_maker
-from .tasks.sync import sync_jellyseerr_requests, sync_jellyfin_users
+from .tasks.sync import sync_jellyseerr_requests, sync_jellyfin_users, sync_jellyfin_watch_history
 from .routes import router
 
 
@@ -58,10 +58,11 @@ app.include_router(router)
 # Global variables
 sync_task = None
 sync_users_task = None
+sync_watch_task = None
 
 @app.on_event("startup")
 async def startup_event():
-    global sync_task, sync_users_task
+    global sync_task, sync_users_task, sync_watch_task
 
     try:
         # Init database
@@ -86,8 +87,16 @@ async def startup_event():
             )
         )
 
+        sync_watch_task = asyncio.create_task(
+            sync_jellyfin_watch_history(
+                session_maker=session_maker,
+                settings=settings
+            )
+        )
+
         sync_task.add_done_callback(handle_sync_task_complete)
         sync_users_task.add_done_callback(handle_sync_task_complete)
+        sync_watch_task.add_done_callback(handle_sync_task_complete)
 
         logger.info("Sync task started successfully")
 
@@ -106,7 +115,7 @@ def handle_sync_task_complete(task):
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    global sync_task
+    global sync_task, sync_users_task, sync_watch_task
 
     # Cancel sync task
     if sync_task:
@@ -124,3 +133,11 @@ async def shutdown_event():
                 await sync_users_task
             except asyncio.CancelledError:
                 logger.info("Jellyfin users sync task cancelled successfully")
+
+        if sync_watch_task:
+            logger.info("Cancelling Jellyfin watch history sync task...")
+            sync_watch_task.cancel()
+            try:
+                await sync_watch_task
+            except asyncio.CancelledError:
+                logger.info("Jellyfin watch history sync task cancelled successfully")

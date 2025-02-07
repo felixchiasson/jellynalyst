@@ -2,16 +2,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 import logging
 
-from ..api.jellyfin import JellyfinClient, JellyfinUser
-from ..database.models import JellyfinUsers
+from ..api.jellyfin import JellyfinClient, JellyfinUser, JellyfinWatchItem
+from ..database.models import JellyfinUsers, JellyfinWatchHistory
+from ..services.tmdb import TMDBService
 
 logger = logging.getLogger(__name__)
 
 class JellyfinService:
     def __init__(self, session: AsyncSession,
-        jellyfin_client: JellyfinClient):
+        jellyfin_client: JellyfinClient,
+        tmdb_service: TMDBService):
             self.session = session
             self.client = jellyfin_client
+            self.tmdb_service = tmdb_service
 
     async def sync_users(self) -> None:
         """
@@ -63,4 +66,74 @@ class JellyfinService:
 
         except Exception as e:
             logger.error(f"Error upserting user {user.username}: {e}", exc_info=True)
+            raise
+
+    async def sync_user_watch_history(self, user_id: str) -> None:
+        """
+        Sync watch history for a specific user
+        """
+        try:
+            logger.debug(f"Getting watch history for user {user_id}")
+            watch_items = await self.client.get_watch_history(user_id)
+            logger.info(f"Fetched {len(watch_items)} watch history items for user {user_id}")
+
+            for item in watch_items:
+                await self._upsert_watch_history(user_id, item)
+
+            await self.session.commit()
+            logger.info(f"Watch history sync complete for user {user_id}")
+
+        except Exception as e:
+            logger.error(f"Error syncing watch history for user {user_id}: {e}")
+            raise
+
+    async def _upsert_watch_history(self, user_id: str, item: JellyfinWatchItem) -> None:
+        """
+        Insert or update a watch history item
+        """
+        if item.last_played_date is None:
+            logger.debug(f"Skipping item {item.item_name} - missing last_played_date")
+            return
+
+        if item.tmdb_id:
+            try:
+                # Get or fetch TMDB data
+                await self.tmdb_service.get_or_fetch_media(
+                    item.tmdb_id,
+                    "movie" if item.item_type.lower() == "movie" else "tv"
+                )
+                logger.debug(f"Retrieved TMDB info for {item.item_name}")
+            except Exception as e:
+                logger.warning(f"Failed to fetch TMDB data for {item.item_name}: {e}")
+                # If we can't get TMDB data, set tmdb_id to None
+                item.tmdb_id = None
+
+        try:
+            watch_data = {
+                "user_id": user_id,
+                "item_id": item.item_id,
+                "item_name": item.item_name,
+                "item_type": item.item_type,
+                "tmdb_id": item.tmdb_id,
+                "imdb_id": item.imdb_id,
+                "genres": item.genres or [],
+                "played_percentage": item.played_percentage,
+                "play_count": item.play_count,
+                "last_played_date": item.last_played_date,
+                "is_played": item.is_played,
+                "runtime_ticks": item.runtime_ticks,
+                "production_year": item.production_year,
+            }
+
+            stmt = insert(JellyfinWatchHistory).values(**watch_data)
+            stmt = stmt.on_conflict_do_update(
+                constraint='uq_user_item',
+                set_=watch_data
+            )
+
+            await self.session.execute(stmt)
+            logger.debug(f"Upserted watch history for item: {item.item_name}")
+
+        except Exception as e:
+            logger.error(f"Error upserting watch history for item {item.item_name}: {e}")
             raise

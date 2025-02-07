@@ -1,7 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import String, DateTime, ARRAY, Boolean, Enum, Float, ForeignKey
+from sqlalchemy import String, DateTime, ARRAY, Boolean, Enum, Float, ForeignKey, Integer, BigInteger, func
 from datetime import datetime
+from sqlalchemy import UniqueConstraint
 from typing import List
 import enum
 
@@ -14,6 +15,7 @@ class RequestStatus(enum.Enum):
     AVAILABLE = "available"
     DECLINED = "declined"
     DELETED = "deleted"
+
 # Jellyfin Users
 class JellyfinUsers(Base):
     __tablename__ = "jellyfin_users"
@@ -48,6 +50,50 @@ class TMDBMedia(Base):
 
     # Relationship with MediaRequest
     requests: Mapped[List["MediaRequest"]] = relationship("MediaRequest", back_populates="tmdb_info")
+
+# Jellyfin Watch History
+class JellyfinWatchHistory(Base):
+    __tablename__ = "watch_history"
+
+    # This one is a bit complicated
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("jellyfin_users.jellyfin_id"))
+
+    # Jellyfin item details
+    item_id: Mapped[str] = mapped_column(String(100), nullable=False)  # Jellyfin's item ID
+    item_type: Mapped[str] = mapped_column(String(50), nullable=False)  # Movie, Episode, etc.
+    item_name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # Provider details (tmdb id!!!)
+    # Media details
+    tmdb_id: Mapped[int] = mapped_column(ForeignKey("tmdb_media.id"), nullable=True)
+    imdb_id: Mapped[str] = mapped_column(String(50), nullable=True)  # From ProviderIds.Imdb
+    genres: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=True)  # Genres
+
+    # Playback details
+    played_percentage: Mapped[float] = mapped_column(Float, nullable=True)  # UserData.PlayedPercentage
+    play_count: Mapped[int] = mapped_column(Integer, default=0)  # UserData.PlayCount
+    last_played_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)  # UserData.LastPlayedDate
+    is_played: Mapped[bool] = mapped_column(Boolean, default=False)  # UserData.Played
+
+    # Additional metadata
+    runtime_ticks: Mapped[int] = mapped_column(BigInteger, nullable=True)  # RunTimeTicks
+    production_year: Mapped[int] = mapped_column(Integer, nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    tmdb_info: Mapped[TMDBMedia] = relationship("TMDBMedia")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'item_id', name='uq_user_item'),
+    )
+
+    def __repr__(self) -> str:
+            return f"<JellyfinWatchHistory(id={self.id}, user={self.user_id}, item={self.item_name})>"
+
 
 class MediaRequest(Base):
     __tablename__ = "media_requests"

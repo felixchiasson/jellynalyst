@@ -63,16 +63,62 @@ async def sync_jellyfin_users(
         api_key=settings.JELLYFIN_API_KEY
     )
 
+    tmdb_client = TMDBClient(api_key=settings.TMDB_API_KEY)
+
     while True:
         try:
             logger.info("Syncing Jellyfin users...")
 
             async with session_maker() as session:
-                jellyfin_service = JellyfinService(session, client)
+                tmdb_service = TMDBService(session, tmdb_client)
+                jellyfin_service = JellyfinService(session, client, tmdb_service)
                 # Fetch all users from Jellyfin
                 await jellyfin_service.sync_users()
 
         except Exception as e:
             logger.error(f"Error syncing users: {e}")
 
+        await asyncio.sleep(interval_seconds)
+
+async def sync_jellyfin_watch_history(
+    session_maker: async_sessionmaker[AsyncSession],
+    settings: Settings,
+    interval_seconds: int = 300 # 5 minutes
+) -> None:
+    """
+    Periodically sync watch history from Jellyfin
+    """
+    logger.info("Starting Jellyfin watch history sync task")
+    client = JellyfinClient(
+        base_url=settings.JELLYFIN_URL,
+        api_key=settings.JELLYFIN_API_KEY
+    )
+
+    tmdb_client = TMDBClient(api_key=settings.TMDB_API_KEY)
+
+    while True:
+        try:
+            logger.info("Syncing Jellyfin watch history...")
+
+            async with session_maker() as session:
+                # First get all users
+                tmdb_service = TMDBService(session, tmdb_client)
+                jellyfin_service = JellyfinService(session, client, tmdb_service)
+                users = await client.get_users()
+
+                # Then sync watch history for each user
+                for user in users:
+                    try:
+                        logger.info(f"Processing user: {user.username} ({user.jellyfin_id})")
+                        await jellyfin_service.sync_user_watch_history(user.jellyfin_id)
+                    except Exception as e:
+                        logger.error(f"Error processing user {user.username}: {e}", exc_info=True)
+                        continue
+
+                logger.info("Watch history sync complete")
+
+        except Exception as e:
+            logger.error(f"Error syncing watch history: {e}")
+
+        logger.debug(f"Sleeping for {interval_seconds} seconds")
         await asyncio.sleep(interval_seconds)
