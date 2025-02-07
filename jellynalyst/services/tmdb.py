@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timedelta
 
-from ..database.models import TMDBMedia
+from ..database import TMDBMedia
 from ..api.tmdb import TMDBClient
 
 class TMDBService:
