@@ -6,9 +6,8 @@ from typing import List
 from pydantic import BaseModel
 import logging
 
-from ..database.models import MediaRequest
 from ..database.dependencies import get_session
-from ..database.models import TMDBMedia
+from ..database.models import TMDBMedia, MediaRequest, JellyfinUsers
 
 logger = logging.getLogger("jellynalyst.routes.debug")
 
@@ -147,6 +146,35 @@ async def debug_field(
             logger.error(f"Error debugging fields for request {req.id}: {e}")
 
     return field_debug
+
+@router.get("/jellyfin-users")
+async def get_jellyfin_users(
+    session: AsyncSession = Depends(get_session)
+):
+    """Debug endpoint to view Jellyfin users"""
+    try:
+        result = await session.execute(select(JellyfinUsers))
+        users = result.scalars().all()
+        return {
+            "count": len(users),
+            "users": [
+                {
+                    "id": user.id,
+                    "jellyfin_id": user.jellyfin_id,
+                    "username": user.username,
+                    "is_administrator": user.is_administrator,
+                    "last_login": user.last_login.isoformat(),
+                    "last_seen": user.last_seen.isoformat()
+                }
+                for user in users
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error getting Jellyfin users: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching users: {str(e)}"
+        )
 
 @router.get("/requests", response_model=List[DebugRequest])
 async def get_requests(

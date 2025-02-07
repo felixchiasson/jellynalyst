@@ -40,7 +40,7 @@ import asyncio
 # Local imports
 from .config import Settings
 from .database import init_db, init_session_maker
-from .tasks.sync import sync_jellyseerr_requests
+from .tasks.sync import sync_jellyseerr_requests, sync_jellyfin_users
 from .routes import router
 
 
@@ -57,10 +57,11 @@ app.include_router(router)
 
 # Global variables
 sync_task = None
+sync_users_task = None
 
 @app.on_event("startup")
 async def startup_event():
-    global sync_task
+    global sync_task, sync_users_task
 
     try:
         # Init database
@@ -77,7 +78,17 @@ async def startup_event():
                 settings=settings
             )
         )
+
+        sync_users_task = asyncio.create_task(
+            sync_jellyfin_users(
+                session_maker=session_maker,
+                settings=settings
+            )
+        )
+
         sync_task.add_done_callback(handle_sync_task_complete)
+        sync_users_task.add_done_callback(handle_sync_task_complete)
+
         logger.info("Sync task started successfully")
 
     except Exception as e:
@@ -105,3 +116,11 @@ async def shutdown_event():
             await sync_task
         except asyncio.CancelledError:
             logger.info("Sync task cancelled successfully")
+
+        if sync_users_task:  # Add this block
+            logger.info("Cancelling Jellyfin users sync task...")
+            sync_users_task.cancel()
+            try:
+                await sync_users_task
+            except asyncio.CancelledError:
+                logger.info("Jellyfin users sync task cancelled successfully")

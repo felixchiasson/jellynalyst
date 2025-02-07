@@ -14,6 +14,22 @@ class RequestStatus(enum.Enum):
     AVAILABLE = "available"
     DECLINED = "declined"
     DELETED = "deleted"
+# Jellyfin Users
+class JellyfinUsers(Base):
+    __tablename__ = "jellyfin_users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    jellyfin_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    username: Mapped[str] = mapped_column(String(100), nullable=False)
+    is_administrator: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    # http://192.168.2.100:8096/Users/b7dfa727ca7147e1885785a6aee7c336/Images/Primary?width=600&tag=81ffa2dfed497ae90f0b04bb9f108933&quality=90
+    # Could use this somehow
+    primary_image_tag: Mapped[str] = mapped_column(String(100), nullable=True)
+    last_login: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<JellyfinUser(id={self.id}, username={self.username})>"
 
 # TMDB
 class TMDBMedia(Base):
