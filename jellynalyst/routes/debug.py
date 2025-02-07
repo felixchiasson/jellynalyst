@@ -7,8 +7,8 @@ from pydantic import BaseModel
 import httpx
 import logging
 
-from ..database.dependencies import get_session
-from ..database.models import TMDBMedia, MediaRequest, JellyfinUsers, JellyfinWatchHistory
+from ..database import get_session
+from ..database import TMDBMedia, MediaRequest, JellyfinUsers, JellyfinWatchHistory
 from ..api.jellyfin import JellyfinClient
 from ..services.jellyfin import JellyfinService
 from ..services.tmdb import TMDBClient, TMDBService

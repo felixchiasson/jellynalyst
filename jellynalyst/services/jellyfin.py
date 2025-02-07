@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import insert
 import logging
 
 from ..api.jellyfin import JellyfinClient, JellyfinUser, JellyfinWatchItem
-from ..database.models import JellyfinUsers, JellyfinWatchHistory
+from ..database import JellyfinUsers, JellyfinWatchHistory
 from ..services.tmdb import TMDBService
 
 logger = logging.getLogger(__name__)

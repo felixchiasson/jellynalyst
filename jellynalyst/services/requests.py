@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 import zoneinfo
 
 from ..api.jellyseerr import JellyseerrRequest, RequestStatus as JellyseerrStatus
-from ..database.models import MediaRequest, RequestStatus as DBRequestStatus
+from ..database import MediaRequest, RequestStatus as DBRequestStatus
 from ..services.tmdb import TMDBService
 
 class RequestService:
