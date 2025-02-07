@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func, text
 from datetime import datetime
 from typing import List
 from pydantic import BaseModel
@@ -8,6 +8,7 @@ import logging
 
 from ..database.models import MediaRequest
 from ..database.dependencies import get_session
+from ..database.models import TMDBMedia
 
 logger = logging.getLogger("jellynalyst.routes.debug")
 
@@ -189,6 +190,59 @@ async def get_requests(
         raise HTTPException(
             status_code=500,
             detail=f"Error fetching requests: {str(e)}"
+        )
+
+@router.get("/tmdb-stats")
+async def get_tmdb_stats(session: AsyncSession = Depends(get_session)):
+    """Get statistics about TMDB data"""
+    try:
+        # Get total count
+        result = await session.execute(
+            select(TMDBMedia.media_type, func.count().label('count'))
+            .group_by(TMDBMedia.media_type)
+        )
+        counts_by_type = {t: c for t, c in result}
+
+        # Get genre distribution
+        result = await session.execute(
+            text("""
+            SELECT
+                unnest(genres) as genre,
+                COUNT(*) as count
+            FROM tmdb_media
+            GROUP BY genre
+            ORDER BY count DESC
+        """)
+        )
+        genre_counts = {row[0]: row[1] for row in result}
+
+        # Get recent updates
+        result = await session.execute(
+            select(TMDBMedia)
+            .order_by(TMDBMedia.last_updated.desc())
+            .limit(5)
+        )
+        recent_updates = [
+            {
+                "id": m.id,
+                "title": m.title,
+                "media_type": m.media_type,
+                "last_updated": m.last_updated.isoformat()
+            }
+            for m in result.scalars()
+        ]
+
+        return {
+            "total_items": sum(counts_by_type.values()),
+            "counts_by_type": counts_by_type,
+            "genre_distribution": genre_counts,
+            "recent_updates": recent_updates
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting TMDB stats: {str(e)}"
         )
 
 @router.get("/test-logging")

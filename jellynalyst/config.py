@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     JELLYSEERR_URL: str
     JELLYFIN_API_KEY: str
     JELLYFIN_URL: str
+    TMDB_API_KEY: str
 
     model_config = {
             "env_file": ".env",

@@ -13,6 +13,7 @@ services:
       - JELLYSEERR_URL=${JELLYSEERR_URL}
       - JELLYFIN_API_KEY=${JELLYFIN_API_KEY}
       - JELLYFIN_URL=${JELLYFIN_URL}
+      - TMDB_API_KEY=${TMDB_API_KEY}
     depends_on:
       db:
         condition: service_healthy

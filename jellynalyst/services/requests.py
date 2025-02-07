@@ -7,10 +7,12 @@ import zoneinfo
 
 from ..api.jellyseerr import JellyseerrRequest, RequestStatus as JellyseerrStatus
 from ..database.models import MediaRequest, RequestStatus as DBRequestStatus
+from ..services.tmdb import TMDBService
 
 class RequestService:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, tmdb_service: TMDBService):
         self.session = session
+        self.tmdb_service = tmdb_service
 
     async def sync_requests(self, jellyseerr_requests: List[JellyseerrRequest]) -> None:
         """
@@ -45,20 +47,25 @@ class RequestService:
         """
         Insert or update a request in the database
         """
+        tmdb_info = await self.tmdb_service.get_or_fetch_media(
+            request.media.tmdbId, request.type
+        )
+
         status = self._map_status(request.status)
+        now = datetime.now(zoneinfo.ZoneInfo("UTC"))
 
         # Prepare the request data
         request_data = {
             "jellyseerr_id": request.id,
             "tmdb_id": request.media.tmdbId,
             "media_type": request.type,
-            "title": request.media.mediaType, # TODO: Fetch tmdb titles
+            "title": tmdb_info.title, # TODO: Fetch tmdb titles
             "request_date": request.createdAt,
             "status": status,
             "requester": request.requestedBy.displayName,
-            "genres": [], # TODO: Fetch tmdb genres,
+            "genres": tmdb_info.genres,
             "is_deleted": False,
-            "last_checked": datetime.now(),
+            "last_checked": now,
         }
 
         stmt = insert(MediaRequest).values(**request_data)
