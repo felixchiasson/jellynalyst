@@ -77,7 +77,4 @@ async def init_db(settings):
             class_=AsyncSession
         )
 
-    async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
     return async_session
