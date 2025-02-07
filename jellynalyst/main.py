@@ -1,19 +1,50 @@
-from fastapi import FastAPI, Depends
+import logging
+from logging.config import dictConfig
+
+logging_config = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "default",
+            "level": "DEBUG"
+        }
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "DEBUG"
+    },
+    "loggers": {
+        "jellynalyst": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False
+        }
+    }
+}
+
+dictConfig(logging_config)
+logger = logging.getLogger(__name__)
+
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 import asyncio
-import logging
 
 # Local imports
 from .config import Settings
-from .database.models import init_db, get_db, MediaRequest
+from .database import init_db, init_session_maker
 from .tasks.sync import sync_jellyseerr_requests
+from .routes import router
+
 
 app = FastAPI(title="Jellynalyst", version="0.1.0")
-
-logger = logging.getLogger(__name__)
 
 # Static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -22,18 +53,20 @@ templates = Jinja2Templates(directory="templates")
 # Settings
 settings = Settings(_env_file='.env')
 
+app.include_router(router)
+
 # Global variables
-session_maker: async_sessionmaker[AsyncSession] | None = None
 sync_task = None
 
 @app.on_event("startup")
 async def startup_event():
-    global session_maker, sync_task
+    global sync_task
 
     try:
         # Init database
         logger.info("Initializing database...")
         session_maker = await init_db(settings)
+        init_session_maker(session_maker)
         logger.info("Database initialized")
 
         # Start sync task
@@ -60,43 +93,6 @@ def handle_sync_task_complete(task):
     except Exception as e:
         logger.error(f"Sync task failed with error: {e}")
 
-@app.get("/")
-async def home():
-    return templates.TemplateResponse("index.html", {"request": {}})
-
-@app.get("/api/stats")
-async def get_stats(db: AsyncSession = Depends(lambda: get_db(session_maker))):
-    return {"message": "TODO: implement stats"}
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
-
-# Temporary debug endpoint
-@app.get("/debug/requests")
-async def get_requests(
-    limit: int = 10,
-    session: AsyncSession = Depends(get_db)
-):
-    """Debug endpoint to view recent requests"""
-    result = await session.execute(
-        select(MediaRequest)
-        .order_by(MediaRequest.request_date.desc())
-        .limit(limit)
-    )
-    requests = result.scalars().all()
-
-    return [{
-        "id": req.id,
-        "jellyseerr_id": req.jellyseerr_id,
-        "title": req.title,
-        "status": req.status.name,
-        "request_date": req.request_date,
-        "requester": req.requester,
-        "is_deleted": req.is_deleted,
-        "last_checked": req.last_checked
-    } for req in requests]
-
 @app.on_event("shutdown")
 async def shutdown_event():
     global sync_task
@@ -109,7 +105,3 @@ async def shutdown_event():
             await sync_task
         except asyncio.CancelledError:
             logger.info("Sync task cancelled successfully")
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=37192)

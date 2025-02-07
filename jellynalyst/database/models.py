@@ -3,9 +3,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import String, DateTime, ARRAY, Boolean, Enum
 from datetime import datetime
 from typing import List
-from typing import AsyncGenerator
 import enum
-import zoneinfo
 
 class Base(DeclarativeBase):
     pass
@@ -46,7 +44,3 @@ async def init_db(settings):
             await conn.run_sync(Base.metadata.create_all)
 
     return async_session
-
-async def get_db(async_session) -> AsyncGenerator[AsyncSession, None]:
-    async with async_session() as session:
-        yield session
