@@ -71,7 +71,7 @@ async def simple_test(session: AsyncSession = Depends(get_session)):
 
 @router.get("/raw-requests")
 async def get_raw_requests(
-    request: Request,  # Add this parameter
+    request: Request,
     session: AsyncSession = Depends(get_session)
 ):
     """Most basic debug endpoint to see raw data"""
